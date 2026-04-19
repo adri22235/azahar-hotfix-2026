@@ -79,7 +79,7 @@ jobs:
       BUILD_DIR: build/windows-x86_64
       EXTRA_CORE_ARGS: -DENABLE_LTO=OFF -G Ninja
       CMAKE: x86_64-w64-mingw32.static-cmake
-      IMAGE: ghcr.io/msys2/msys2:latest
+      IMAGE: archlinux:latest
       EXTRA_PATH: bin/Release
     steps:
       - uses: actions/checkout@v4
