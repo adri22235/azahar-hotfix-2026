@@ -78,7 +78,7 @@ jobs:
       TARGET: x86_64
       BUILD_DIR: build/windows-x86_64
       EXTRA_CORE_ARGS: -DENABLE_LTO=OFF -G Ninja
-      CMAKE: x86_64-w64-mingw32.static-cmake
+      CMAKE: x86_64-w64-mingw32-cmake
       IMAGE: archlinux:latest
       EXTRA_PATH: bin/Release
     steps:
