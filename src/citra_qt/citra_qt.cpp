@@ -2607,7 +2607,8 @@ void GMainWindow::ToggleSecondaryFullscreen() {
     if (secondary_window->isFullScreen()) {
         secondary_window->showNormal();
     } else {
-        secondary_window->showFullScreen();
+        secondary_window->setWindowFlag(Qt::FramelessWindowHint, true);
+	secondary_window->showFullScreen();
     }
 }
 
@@ -2616,10 +2617,12 @@ void GMainWindow::ShowFullscreen() {
         UISettings::values.geometry = saveGeometry();
         ui->menubar->hide();
         statusBar()->hide();
-        showFullScreen();
+        setWindowFlag(Qt::FramelessWindowHint, true);
+	showFullScreen();
     } else {
         UISettings::values.renderwindow_geometry = render_window->saveGeometry();
-        render_window->showFullScreen();
+        render_window->setWindowFlag(Qt::FramelessWindowHint, true);
+	render_window->showFullScreen();
     }
 }
 
