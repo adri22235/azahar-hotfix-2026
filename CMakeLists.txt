@@ -524,7 +524,7 @@ endif()
 
 # SDL2
 if (ENABLE_SDL2 AND USE_SYSTEM_SDL2)
-    find_package(SDL2 REQUIRED)
+    find_package(SDL2 REQUIRED CONFIG)
     add_library(SDL2 INTERFACE)
     target_link_libraries(SDL2 INTERFACE "${SDL2_LIBRARY}")
     target_include_directories(SDL2 INTERFACE "${SDL2_INCLUDE_DIR}")
