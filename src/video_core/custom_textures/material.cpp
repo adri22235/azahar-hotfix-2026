@@ -97,25 +97,42 @@ void CustomTexture::LoadDDS(std::span<const u8> input) {
 }
 
 void Material::LoadFromDisk(bool flip_png) noexcept {
-    if (IsDecoded()) {
+    if (IsDecoded() || IsFailed()) {
         return;
     }
+
+    size = 0;
+
     for (CustomTexture* const texture : textures) {
-        if (!texture || texture->IsLoaded()) {
+        if (!texture) {
             continue;
         }
-        texture->LoadFromDisk(flip_png);
+
+        if (!texture->IsLoaded()) {
+            texture->LoadFromDisk(flip_png);
+        }
+
+        if (!texture->IsValid()) {
+            LOG_ERROR(Render, "Failed to load {} map {} for material with hash {:#016X}",
+                      MapTypeName(texture->type), texture->path, hash);
+            state = DecodeState::Failed;
+            return;
+        }
+
         size += texture->data.size();
         LOG_DEBUG(Render, "Loading {} map {}", MapTypeName(texture->type), texture->path);
     }
-    if (!textures[0]) {
-        LOG_ERROR(Render, "Unable to create material without color texture!");
+
+    if (!textures[0] || !textures[0]->IsValid()) {
+        LOG_ERROR(Render, "Unable to create material without valid color texture!");
         state = DecodeState::Failed;
         return;
     }
+
     width = textures[0]->width;
     height = textures[0]->height;
     format = textures[0]->format;
+
     for (const CustomTexture* texture : textures) {
         if (!texture) {
             continue;
@@ -138,6 +155,7 @@ void Material::LoadFromDisk(bool flip_png) noexcept {
             return;
         }
     }
+
     state = DecodeState::Decoded;
 }
 
