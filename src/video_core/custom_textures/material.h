@@ -47,6 +47,10 @@ public:
         return !data.empty();
     }
 
+    [[nodiscard]] bool IsValid() const noexcept {
+        return IsLoaded() && width > 0 && height > 0;
+    }
+
 private:
     void LoadPNG(std::span<const u8> input, bool flip_png);
 
