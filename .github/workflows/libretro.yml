@@ -131,6 +131,8 @@ jobs:
       EXTRA_CORE_ARGS: -DENABLE_LTO=OFF -G Ninja
       CMAKE: x86_64-w64-mingw32.static-cmake
       IMAGE: reallibretroretroarch/libretro-build-mxe-win-cross-cores:mingw12
+      CMAKE: x86_64-w64-mingw32-cmake
+      IMAGE: archlinux:latest
       EXTRA_PATH: bin/Release
     steps:
       - uses: actions/checkout@v4
