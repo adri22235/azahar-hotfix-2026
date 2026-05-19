@@ -81,7 +81,7 @@ class DocumentsTree {
     fun getFilename(filepath: String): String {
         val components = filepath.split(DELIMITER).filter { it.isNotEmpty() }
         val filename = components.last()
-        return filename
+        return decodePathComponent(filename)
     }
 
     @Synchronized
@@ -122,12 +122,13 @@ class DocumentsTree {
                 structTree(current)
             }
 
-            var child = current.findChild(component)
+            val decodedComponent = decodePathComponent(component)
+            var child = current.findChild(decodedComponent)
 
             // Create directory if it doesn't exist and creation is enabled
             if (child == null && createIfNotExists) {
                 try {
-                    val createdDir = FileUtil.createDir(current.uri.toString(), component) ?: return null
+                    val createdDir = FileUtil.createDir(current.uri.toString(), decodedComponent) ?: return null
                     child = DocumentsNode(createdDir, true).apply {
                         parent = current
                     }
@@ -278,7 +279,7 @@ class DocumentsTree {
         val tokens = StringTokenizer(filepath, DELIMITER, false)
         var iterator = root
         while (tokens.hasMoreTokens()) {
-            val token = tokens.nextToken()
+            val token = decodePathComponent(tokens.nextToken())
             if (token.isEmpty()) continue
             iterator = find(iterator!!, token)
             if (iterator == null) return null
@@ -309,6 +310,9 @@ class DocumentsTree {
         }
         parent.loaded = true
     }
+
+    private fun decodePathComponent(component: String): String =
+        Uri.decode(component) ?: component
 
     private class DocumentsNode {
         @get:Synchronized

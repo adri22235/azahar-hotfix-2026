@@ -179,6 +179,7 @@ void Config::ReadValues() {
     ReadSetting("Renderer", Settings::values.bg_blue);
     ReadSetting("Renderer", Settings::values.custom_second_layer_opacity);
     ReadSetting("Renderer", Settings::values.delay_game_render_thread_us);
+    ReadSetting("Renderer", Settings::values.simulate_3ds_gpu_timings);
     ReadSetting("Renderer", Settings::values.disable_right_eye_render);
     ReadSetting("Renderer", Settings::values.swap_eyes_3d);
     ReadSetting("Renderer", Settings::values.render_3d_which_display);
@@ -231,6 +232,7 @@ void Config::ReadValues() {
 
     // Storage
     ReadSetting("Storage", Settings::values.compress_cia_installs);
+    ReadSetting("Storage", Settings::values.async_fs_operations);
 
     // Utility
     ReadSetting("Utility", Settings::values.dump_textures);
@@ -242,6 +244,7 @@ void Config::ReadValues() {
     ReadSetting("Audio", Settings::values.audio_emulation);
     ReadSetting("Audio", Settings::values.enable_audio_stretching);
     ReadSetting("Audio", Settings::values.enable_realtime_audio);
+    ReadSetting("Audio", Settings::values.simulate_headphones_plugged);
     ReadSetting("Audio", Settings::values.volume);
     ReadSetting("Audio", Settings::values.output_type);
     ReadSetting("Audio", Settings::values.output_device);
@@ -316,6 +319,7 @@ void Config::ReadValues() {
     ReadSetting("Debugging", Settings::values.instant_debug_log);
     ReadSetting("Debugging", Settings::values.enable_rpc_server);
     ReadSetting("Debugging", Settings::values.toggle_unique_data_console_type);
+    ReadSetting("Debugging", Settings::values.break_on_unmapped_memory_access);
 
     for (const auto& service_module : Service::service_module_map) {
         bool use_lle =
@@ -334,16 +338,18 @@ void Config::ReadValues() {
 void Config::Reload() {
     for (auto key = Settings::Keys::keys_array.begin(); key != Settings::Keys::keys_array.end();
          ++key) {
-        const auto key_declaration_string = std::string(*key) + " =";
+        const std::string key_name{*key};
+        const auto key_declaration_string = key_name + " =";
+        const bool is_omitted = std::ranges::any_of(
+            DefaultINI::android_config_omitted_keys,
+            [&key_name](const auto& omitted_key) { return std::string{omitted_key} == key_name; });
         // FIXME: This code looks so ass when formatted by clang-format -OS
-        if (std::ranges::find(DefaultINI::android_config_omitted_keys, *key) ==
-                std::end(DefaultINI::android_config_omitted_keys) &&
-            std::string(DefaultINI::android_config_default_file_content)
-                    .find(key_declaration_string) == std::string::npos) {
+        if (!is_omitted && std::string(DefaultINI::android_config_default_file_content)
+                                   .find(key_declaration_string) == std::string::npos) {
             ASSERT_MSG(false,
                        "Validation of default content config failed: Missing or malformed key "
                        "declaration {}",
-                       *key);
+                       key_name);
         }
     }
     LoadINI(DefaultINI::android_config_default_file_content);

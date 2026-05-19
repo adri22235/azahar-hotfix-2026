@@ -1,3 +1,7 @@
+// Copyright Citra Emulator Project / Azahar Emulator Project
+// Licensed under GPLv2 or any later version
+// Refer to the license.txt file included.
+
 // Copyright 2023 Citra Emulator Project
 // Licensed under GPLv2 or any later version
 // Refer to the license.txt file included.
@@ -45,6 +49,10 @@ public:
 
     [[nodiscard]] bool IsLoaded() const noexcept {
         return !data.empty();
+    }
+
+    [[nodiscard]] bool IsValid() const noexcept {
+        return IsLoaded() && width > 0 && height > 0;
     }
 
 private:
