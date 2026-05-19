@@ -2698,16 +2698,13 @@ void GMainWindow::ShowFullscreen() {
 #ifdef NEEDS_ROUND_CORNERS_FIX
         WindowCornerManager::instance().blockRoundedCorners(this, true);
 #endif
+        setWindowFlag(Qt::FramelessWindowHint, true);
         showFullScreen();
     } else {
         UISettings::values.renderwindow_geometry = render_window->saveGeometry();
 #ifdef NEEDS_ROUND_CORNERS_FIX
         WindowCornerManager::instance().blockRoundedCorners(render_window, true);
 #endif
-        setWindowFlag(Qt::FramelessWindowHint, true);
-        showFullScreen();
-    } else {
-        UISettings::values.renderwindow_geometry = render_window->saveGeometry();
         render_window->setWindowFlag(Qt::FramelessWindowHint, true);
         render_window->showFullScreen();
     }
