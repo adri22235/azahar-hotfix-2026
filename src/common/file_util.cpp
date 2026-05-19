@@ -554,10 +554,11 @@ u64 GetSize(const std::string& filename) {
 u64 GetSize(const int fd) {
 #ifdef _WIN32
     struct _stat64 buf;
+    if (_fstat64(fd, &buf) != 0) {
 #else
     struct stat buf;
-#endif
     if (fstat(fd, &buf) != 0) {
+#endif
         LOG_ERROR(Common_Filesystem, "GetSize: stat failed {}: {}", fd, GetLastErrorMsg());
         return 0;
     }
