@@ -322,8 +322,7 @@ class DocumentsTree {
         parent.loaded = true
     }
 
-    private fun decodePathComponent(component: String): String =
-        Uri.decode(component) ?: component
+    private fun decodePathComponent(component: String): String = Uri.decode(component) ?: component
 
     private class DocumentsNode {
         @get:Synchronized
