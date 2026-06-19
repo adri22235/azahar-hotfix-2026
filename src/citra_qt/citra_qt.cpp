@@ -7,6 +7,7 @@
 #include <memory>
 #include <optional>
 #include <thread>
+#include <unordered_map>
 #include <QFileDialog>
 #include <QFutureWatcher>
 #include <QIcon>
@@ -57,10 +58,12 @@
 #include "citra_qt/debugger/graphics/graphics_vertex_shader.h"
 #include "citra_qt/debugger/ipc/recorder.h"
 #include "citra_qt/debugger/lle_service_modules.h"
+#if MICROPROFILE_ENABLED
 #include "citra_qt/debugger/profiler.h"
+#endif
 #include "citra_qt/debugger/registers.h"
 #include "citra_qt/debugger/wait_tree.h"
-#ifdef USE_DISCORD_PRESENCE
+#ifdef ENABLE_DISCORD_RPC
 #include "citra_qt/discord.h"
 #endif
 #include "citra_qt/dumping/dumping_dialog.h"
@@ -120,7 +123,7 @@
 Q_IMPORT_PLUGIN(QDarwinCameraPermissionPlugin);
 #endif
 
-#ifdef USE_DISCORD_PRESENCE
+#ifdef ENABLE_DISCORD_RPC
 #include "citra_qt/discord_impl.h"
 #endif
 
@@ -419,7 +422,7 @@ GMainWindow::GMainWindow(Core::System& system_)
     default_theme_paths = QIcon::themeSearchPaths();
     UpdateUITheme();
 
-#ifdef USE_DISCORD_PRESENCE
+#ifdef ENABLE_DISCORD_RPC
     SetDiscordEnabled(UISettings::values.enable_discord_presence.GetValue());
     discord_rpc->Update(false);
 #endif
@@ -712,11 +715,6 @@ void GMainWindow::InitializeDebugWidgets() {
     microProfileDialog = new MicroProfileDialog(this);
     microProfileDialog->hide();
     debug_menu->addAction(microProfileDialog->toggleViewAction());
-#else
-    auto micro_profile_stub = new QAction(tr("MicroProfile (unavailable)"), this);
-    micro_profile_stub->setEnabled(false);
-    micro_profile_stub->setChecked(false);
-    debug_menu->addAction(micro_profile_stub);
 #endif
 
     registersWidget = new RegistersWidget(system, this);
@@ -879,6 +877,8 @@ void GMainWindow::InitializeHotkeys() {
     link_action_shortcut(ui->action_Debug_Pause, QStringLiteral("Debug Pause"));
     link_action_shortcut(ui->action_Debug_Resume, QStringLiteral("Debug Resume"));
     link_action_shortcut(ui->action_Debug_Step, QStringLiteral("Debug Step"), false, true);
+    link_action_shortcut(ui->action_Debug_Unschedule_All, QStringLiteral("Debug Unschedule All"));
+    link_action_shortcut(ui->action_Debug_Schedule_All, QStringLiteral("Debug Schedule All"));
     link_action_shortcut(ui->action_Screen_Layout_Swap_Screens, QStringLiteral("Swap Screens"));
     link_action_shortcut(ui->action_Screen_Layout_Upright_Screens,
                          QStringLiteral("Rotate Screens Upright"));
@@ -1209,6 +1209,10 @@ void GMainWindow::ConnectMenuEvents() {
             emu_thread->ExecStep();
         }
     });
+    connect_menu(ui->action_Debug_Unschedule_All,
+                 [this] { system.DebugUnscheduleAllThreadsFromFrontend(true); });
+    connect_menu(ui->action_Debug_Schedule_All,
+                 [this] { system.DebugUnscheduleAllThreadsFromFrontend(false); });
 
     // Tools
     connect_menu(ui->action_Compress_ROM_File, &GMainWindow::OnCompressFile);
@@ -1623,7 +1627,7 @@ void GMainWindow::ShutdownGame() {
 
     AllowOSSleep();
 
-#ifdef USE_DISCORD_PRESENCE
+#ifdef ENABLE_DISCORD_RPC
     discord_rpc->Pause();
 #endif
 
@@ -1654,7 +1658,7 @@ void GMainWindow::ShutdownGame() {
 
     OnCloseMovie();
 
-#ifdef USE_DISCORD_PRESENCE
+#ifdef ENABLE_DISCORD_RPC
     discord_rpc->Update(false);
 #endif
 #ifdef __unix__
@@ -2598,7 +2602,7 @@ void GMainWindow::OnResumeGame(bool first_start) {
     play_time_manager->Start();
 
     if (first_start) {
-#ifdef USE_DISCORD_PRESENCE
+#ifdef ENABLE_DISCORD_RPC
         discord_rpc->Update(true);
 #endif
     }
@@ -2944,7 +2948,7 @@ void GMainWindow::OnConfigure() {
     const int old_input_profile_index = Settings::values.current_input_profile_index;
     const auto old_input_profiles = Settings::values.input_profiles;
     const auto old_touch_from_button_maps = Settings::values.touch_from_button_maps;
-#ifdef USE_DISCORD_PRESENCE
+#ifdef ENABLE_DISCORD_RPC
     const bool old_discord_presence = UISettings::values.enable_discord_presence.GetValue();
 #endif
 #ifdef __unix__
@@ -2958,7 +2962,7 @@ void GMainWindow::OnConfigure() {
         if (UISettings::values.theme != old_theme) {
             UpdateUITheme();
         }
-#ifdef USE_DISCORD_PRESENCE
+#ifdef ENABLE_DISCORD_RPC
         if (UISettings::values.enable_discord_presence.GetValue() != old_discord_presence) {
             SetDiscordEnabled(UISettings::values.enable_discord_presence.GetValue());
             discord_rpc->Update(system.IsPoweredOn());
@@ -4080,31 +4084,68 @@ void GMainWindow::UpdateUITheme() {
 }
 
 void GMainWindow::LoadTranslation() {
+    bool loaded = false;
+
+    const QString lang_en = QStringLiteral("en");
+    const QString languages_dir = QStringLiteral(":/languages/");
+
+    // Workaround for incorrect Qt system language detection
+    // TODO: Allow the "<System>" option to actually be selected rather than overriding the
+    //       selected language option? Current behaviour is better than the issue it fixes,
+    //       but not ideal.
+    if (UISettings::values.language.isEmpty()) {
+        QStringList languages;
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+        languages = QLocale::system().uiLanguages(QLocale::TagSeparator::Underscore);
+#else
+        languages = QLocale::system().uiLanguages();
+        for (auto& lang : languages)
+            lang.replace(u'-', u'_');
+#endif
+        for (const auto& lang : languages) {
+            // If the first language found is English, no need to install any translation
+            if (lang == lang_en) {
+                UISettings::values.language = lang_en;
+                return;
+            }
+            loaded = citraTranslator.load(lang, languages_dir);
+            if (loaded) {
+                UISettings::values.language = lang;
+                break;
+            }
+        }
+    }
+
     // If the selected language is English, no need to install any translation
-    if (UISettings::values.language == QStringLiteral("en")) {
+    if (UISettings::values.language == lang_en) {
         return;
     }
 
-    bool loaded;
-
-    if (UISettings::values.language.isEmpty()) {
+    const QString qtbase_prefix = QStringLiteral("qtbase_");
+    if (UISettings::values.language.isEmpty() && !loaded) {
         // Use the system's default locale
-        loaded = translator.load(QLocale::system(), {}, {}, QStringLiteral(":/languages/"));
+        qtTranslator.load(qtbase_prefix + QLocale::system().name(), {}, {},
+                          QStringLiteral(":/languages/"));
+        loaded = citraTranslator.load(QLocale::system(), {}, {}, QStringLiteral(":/languages/"));
     } else {
         // Otherwise load from the specified file
-        loaded = translator.load(UISettings::values.language, QStringLiteral(":/languages/"));
+        qtTranslator.load(qtbase_prefix + UISettings::values.language,
+                          QStringLiteral(":/languages/"));
+        loaded = citraTranslator.load(UISettings::values.language, QStringLiteral(":/languages/"));
     }
 
     if (loaded) {
-        qApp->installTranslator(&translator);
+        qApp->installTranslator(&qtTranslator);
+        qApp->installTranslator(&citraTranslator);
     } else {
-        UISettings::values.language = QStringLiteral("en");
+        UISettings::values.language = lang_en;
     }
 }
 
 void GMainWindow::OnLanguageChanged(const QString& locale) {
     if (UISettings::values.language != QStringLiteral("en")) {
-        qApp->removeTranslator(&translator);
+        qApp->removeTranslator(&qtTranslator);
+        qApp->removeTranslator(&citraTranslator);
     }
 
     UISettings::values.language = locale;
@@ -4279,7 +4320,7 @@ void GMainWindow::RetranslateStatusBar() {
     multiplayer_state->retranslateUi();
 }
 
-#ifdef USE_DISCORD_PRESENCE
+#ifdef ENABLE_DISCORD_RPC
 void GMainWindow::SetDiscordEnabled([[maybe_unused]] bool state) {
     if (state) {
         discord_rpc = std::make_unique<DiscordRPC::DiscordImpl>(system);

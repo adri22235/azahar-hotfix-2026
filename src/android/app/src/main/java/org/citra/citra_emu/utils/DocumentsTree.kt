@@ -8,14 +8,14 @@ import android.net.Uri
 import android.provider.DocumentsContract
 import androidx.core.net.toUri
 import androidx.documentfile.provider.DocumentFile
-import org.citra.citra_emu.CitraApplication
-import org.citra.citra_emu.model.CheapDocument
-import org.citra.citra_emu.utils.BuildUtil
 import java.io.IOException
 import java.net.URLDecoder
 import java.nio.file.Paths
 import java.util.StringTokenizer
 import java.util.concurrent.ConcurrentHashMap
+import org.citra.citra_emu.CitraApplication
+import org.citra.citra_emu.model.CheapDocument
+import org.citra.citra_emu.utils.BuildUtil
 
 /**
  * A cached document tree for Citra user directory.
@@ -128,7 +128,10 @@ class DocumentsTree {
             // Create directory if it doesn't exist and creation is enabled
             if (child == null && createIfNotExists) {
                 try {
-                    val createdDir = FileUtil.createDir(current.uri.toString(), decodedComponent) ?: return null
+                    val createdDir = FileUtil.createDir(
+                        current.uri.toString(),
+                        decodedComponent
+                    ) ?: return null
                     child = DocumentsNode(createdDir, true).apply {
                         parent = current
                     }
@@ -153,9 +156,7 @@ class DocumentsTree {
     }
 
     @Synchronized
-    fun exists(filepath: String): Boolean {
-        return resolvePath(filepath) != null
-    }
+    fun exists(filepath: String): Boolean = resolvePath(filepath) != null
 
     @Synchronized
     fun copyFile(
@@ -201,7 +202,11 @@ class DocumentsTree {
         val node = resolvePath(filepath) ?: return false
         try {
             val filename = URLDecoder.decode(destinationFilename, FileUtil.DECODE_METHOD)
-            val newUri = DocumentsContract.renameDocument(context.contentResolver, node.uri!!, filename)
+            val newUri = DocumentsContract.renameDocument(
+                context.contentResolver,
+                node.uri!!,
+                filename
+            )
             node.rename(filename, newUri)
             return true
         } catch (e: Exception) {
@@ -215,7 +220,12 @@ class DocumentsTree {
         val sourceDirNode = resolvePath(sourceDirPath) ?: return false
         val destDirNode = resolvePath(destDirPath) ?: return false
         try {
-            val newUri = DocumentsContract.moveDocument(context.contentResolver, sourceFileNode.uri!!, sourceDirNode.uri!!, destDirNode.uri!!)
+            val newUri = DocumentsContract.moveDocument(
+                context.contentResolver,
+                sourceFileNode.uri!!,
+                sourceDirNode.uri!!,
+                destDirNode.uri!!
+            )
             updateDocumentLocation("$sourceDirPath/$filename", "$destDirPath/$filename")
             return true
         } catch (e: Exception) {
@@ -245,7 +255,8 @@ class DocumentsTree {
         val newName = Paths.get(destinationPath).fileName.toString()
         val parentPath = Paths.get(destinationPath).parent.toString()
         val newParent = resolvePath(parentPath)
-        val newUri = (getUri(parentPath).toString() + "%2F$newName").toUri() // <- Is there a better way?
+        val newUri = (getUri(parentPath).toString() + "%2F$newName").toUri()
+        // ^- Is there a better way?
 
         if (sourceNode == null || newParent == null) {
             return false
@@ -311,8 +322,7 @@ class DocumentsTree {
         parent.loaded = true
     }
 
-    private fun decodePathComponent(component: String): String =
-        Uri.decode(component) ?: component
+    private fun decodePathComponent(component: String): String = Uri.decode(component) ?: component
 
     private class DocumentsNode {
         @get:Synchronized
@@ -363,8 +373,7 @@ class DocumentsTree {
         fun findChild(filename: String) = children[filename.lowercase()]
 
         @Synchronized
-        fun getChildNames(): Array<String?> =
-            children.mapNotNull { it.value!!.name }.toTypedArray()
+        fun getChildNames(): Array<String?> = children.mapNotNull { it.value!!.name }.toTypedArray()
     }
 
     companion object {
@@ -372,7 +381,7 @@ class DocumentsTree {
         val kotlinDirectoryAccessWhitelist = arrayOf(
             "/config/",
             "/log/",
-            "/gpu_drivers/",
+            "/gpu_drivers/"
         )
     }
 }
