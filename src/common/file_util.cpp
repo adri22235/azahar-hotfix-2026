@@ -523,7 +523,11 @@ u64 GetSize(const std::string& filename) {
     struct stat buf;
 #endif
 #ifdef _WIN32
+#ifdef _WIN32
     struct _stat64 buf;
+#else
+    struct stat buf;
+#endif
     if (_wstat64(Common::UTF8ToUTF16W(filename).c_str(), &buf) == 0)
 #elif defined(ANDROID) && !defined(HAVE_LIBRETRO_VFS)
     if (AndroidUtils::CanUseRawFS()) {
@@ -548,8 +552,13 @@ u64 GetSize(const std::string& filename) {
 }
 
 u64 GetSize(const int fd) {
-    file_stat_t buf;
+#ifdef _WIN32
+    struct _stat64 buf;
+    if (_fstat64(fd, &buf) != 0) {
+#else
+    struct stat buf;
     if (fstat(fd, &buf) != 0) {
+#endif
         LOG_ERROR(Common_Filesystem, "GetSize: stat failed {}: {}", fd, GetLastErrorMsg());
         return 0;
     }

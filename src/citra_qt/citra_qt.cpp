@@ -2689,6 +2689,7 @@ void GMainWindow::ToggleSecondaryFullscreen() {
 #ifdef NEEDS_ROUND_CORNERS_FIX
         WindowCornerManager::instance().blockRoundedCorners(secondary_window, true);
 #endif
+        secondary_window->setWindowFlag(Qt::FramelessWindowHint, true);
         secondary_window->showFullScreen();
     }
 }
@@ -2701,12 +2702,14 @@ void GMainWindow::ShowFullscreen() {
 #ifdef NEEDS_ROUND_CORNERS_FIX
         WindowCornerManager::instance().blockRoundedCorners(this, true);
 #endif
+        setWindowFlag(Qt::FramelessWindowHint, true);
         showFullScreen();
     } else {
         UISettings::values.renderwindow_geometry = render_window->saveGeometry();
 #ifdef NEEDS_ROUND_CORNERS_FIX
         WindowCornerManager::instance().blockRoundedCorners(render_window, true);
 #endif
+        render_window->setWindowFlag(Qt::FramelessWindowHint, true);
         render_window->showFullScreen();
     }
 }
